@@ -4,15 +4,15 @@ Mind Mapping software in Javascript.  This is meant to be expanded.  I'd like to
 
 # Tools:
 
-s key : select tool
+s  : select tool
 
-c key : create node tool
+c  : create node tool
 
-l key : create link tool (click first, then second nodes)
+l  : create link tool (click first, then second nodes)
 
-m key : move node tool
+m  : move node tool
 
-e key : edit node text tool
+e  : edit node text tool
 
 # Extra Keys
 
