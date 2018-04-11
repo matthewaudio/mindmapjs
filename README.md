@@ -1,5 +1,5 @@
 # mindmapjs
-Mind Mapping software in Javascript.  This is meant to be expanded.  I'd like to add a small format editor for nodes that includes text style, stroke style and fill style.  Same for links.  I'd also like to add json import and export which should be fairly easy as I've kept the editor separate from the document.
+Mind Mapping software in Javascript.  This is meant to be expanded.
 
 
 # Tools:
@@ -18,3 +18,18 @@ e  : edit node text tool
 
 delete : deletes selected nodes.
 
+# Goals
+
+Run locally like an application. No BS monthly charges etc.
+
+focus less on "productivity" more on the "mind/creativity"
+
+One canvas object. Not much HTML craziness.
+
+less focus on hierarchy than other software
+
+# To Do:
+
+JSON import and export
+
+node, link, text style editing
