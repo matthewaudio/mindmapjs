@@ -1,0 +1,543 @@
+<!doctype html>
+<!--[if IE 6]><html lang="en" class="no-js ie6"><![endif]-->
+<!--[if (gt IE 6)|!(IE)]><!-->
+<html lang="en" class="no-js">
+<!--<![endif]-->
+	<head>
+		<meta charset="utf-8"/>
+		<title>Canvas full page</title>
+		<script>
+				/* mind map document object */
+				class MindMap{
+
+					constructor(){
+						this.nodes = new Array();
+						this.links = new Array();	
+						this.lastId = -1;
+					}
+
+					addNode(node){
+						if(node == undefined){
+							this.nodes.push(new MM_Node(this.nextId(),{x:0,y:0}));
+						}
+						return this.nodes[this.nodes.length-1];
+					}
+
+					nextId(){
+						this.lastId++;
+						return this.lastId;
+					}
+
+					findNodeById(id){
+						var found = this.nodes.find(function(element) {
+							return element.id == id;
+						});
+						return found;
+					}
+
+					nodeCoordTest(coords){
+						for(var i = 0 ; i < map.nodes.length;i++){
+							if(map.nodes[i].clickTest(coords)){
+								return map.nodes[i];
+							}
+						}
+						return undefined;
+					}
+
+					linkCoordTest(coords){
+						for(var i = 0 ; i < map.links.length;i++){
+							if(map.links[i].clickTest(coords,3)){
+								return map.links[i];
+							}
+						}
+						return undefined;
+					}
+
+					removeNode(nodeObj){
+						var idOfDeleted = nodeObj.id;
+						var idxInNodesArr = this.nodes.indexOf(nodeObj);
+						this.nodes.splice(idxInNodesArr,1);
+
+						for(var i = 0 ; i < this.links.length;i++){
+							if(this.links[i].fromId==idOfDeleted||this.links[i].toId==idOfDeleted){
+								this.removeLink(this.links[i]);
+							}
+						}
+					}
+
+					removeLink(l){
+						var idxInLinksArr= this.links.indexOf(l);
+						this.links.splice(idxInLinksArr,1);
+					}		
+				}
+
+				/* Editor */
+				class MindMapEditor{
+
+					constructor(){
+						this.mouseTool = new MM_SelectTool();
+						this.keyListener = new MM_MainKeyListener();
+						this.selectedNodes = new Array();
+						this.selectedLinks = new Array();
+					}
+
+					deleteSelected(){
+
+						for(var i = 0 ; i < this.selectedNodes.length;i++){
+							map.removeNode(this.selectedNodes[i]);
+						}
+						for(var i = 0 ; i < this.selectedLinks.length;i++){
+							map.removeLink(this.selectedLinks[i]);
+						}
+
+						this.selectedNodes = new Array();
+						this.selectedLinks = new Array();
+
+						draw();
+					}
+				}
+
+				/*Link*/
+				class MM_Link {
+					constructor(fromId,toId){
+						this.fromId = fromId;
+						this.toId=toId;
+						this.drawStyle = {color: "#000000"};	
+					}
+
+					draw(ctx){
+						ctx.strokeStyle = this.drawStyle.color;
+						var fromCoord = map.findNodeById(this.fromId).coord;
+						var toCoord = map.findNodeById(this.toId).coord;
+						ctx.beginPath();
+						ctx.moveTo(fromCoord.x,fromCoord.y);
+						ctx.lineTo(toCoord.x,toCoord.y);
+						ctx.stroke(); 
+					}
+
+					drawHilite(ctx){
+						ctx.strokeStyle = "#FF0000"
+						var fromCoord = map.findNodeById(this.fromId).coord;
+						var toCoord = map.findNodeById(this.toId).coord;
+						ctx.beginPath();
+						ctx.moveTo(fromCoord.x,fromCoord.y);
+						ctx.lineTo(toCoord.x,toCoord.y);
+						ctx.stroke(); 
+					}
+
+					clickTest(clickCoord,thresh){
+
+
+						var fromCoord = map.findNodeById(this.fromId).coord;
+						var toCoord = map.findNodeById(this.toId).coord;
+						var dist=distToSegment(clickCoord,fromCoord,toCoord);
+						return dist<=thresh;
+
+
+					}
+
+				}
+
+				/*Node */
+				class MM_Node{
+
+					constructor(id,coord){
+						this.id = id;
+						this.coord = coord;
+						this.text = "no text";
+						this.drawStyle = {textColor: "#000000",fillColor: "#FFDDFF",margin: 8};	
+						this.clickBox;
+					}
+
+					clickTest(coord){
+						if(coord.x>=this.clickBox[0]&&coord.x<=this.clickBox[2]&&coord.y>=this.clickBox[1]&&coord.y<=this.clickBox[3]){
+							return true;
+						}
+						return false;
+
+					}
+
+					draw(ctx){
+						ctx.font = "10px Arial";
+						ctx.textAlign = "center";
+						var textWidth = ctx.measureText(this.text).width;
+						var textHeight = ctx.measureText("M").width*1.2;
+						var margin = this.drawStyle.margin/2;
+						this.clickBox = [this.coord.x-textWidth/2-margin,this.coord.y-(textHeight/2)-margin,textWidth+margin*2,textHeight+margin*2];
+						this.clickBox[2] = this.clickBox[0]+this.clickBox[2];
+						this.clickBox[3] = this.clickBox[1]+this.clickBox[3];
+						ctx.fillStyle = this.drawStyle.fillColor;
+						ctx.fillRect(this.coord.x-textWidth/2-margin,this.coord.y-(textHeight/2)-margin,textWidth+margin*2,textHeight+margin*2);
+						ctx.fillStyle = this.drawStyle.textColor;
+						ctx.fillText(this.text,this.coord.x,this.coord.y+textHeight/2);  
+					}
+
+					drawHilite(ctx){
+						ctx.strokeStyle = "#FF0000";
+						ctx.strokeRect(this.clickBox[0],this.clickBox[1],this.clickBox[2]-this.clickBox[0],this.clickBox[3]-this.clickBox[1]);
+					}	
+				}
+
+				/* Mouse Tools */
+				class MM_MouseTool{
+
+					mousedown(evt){}
+
+					mouseup(evt){}
+
+					mousemove(evt){}
+
+				}
+
+				class MM_CreateNodeTool extends MM_MouseTool{
+
+					mousedown(evt){
+						var xx = evt.clientX;
+						var yy = evt.clientY;
+
+						var temp = map.addNode();
+						temp.coord = {x:xx,y:yy};
+						draw();
+
+						//wow this is fucked up.
+						addKeyboardInput(xx,yy,function(textIn){temp.text=textIn;draw();});
+
+					}
+				}
+
+				class MM_EditNodeTextTool extends MM_MouseTool{
+
+						mousedown(evt){
+							var xx = evt.clientX;
+							var yy = evt.clientY;
+
+							var clickedNode = map.nodeCoordTest( {x:xx,y:yy} );
+
+							draw();
+
+							//wow this is fucked up.
+							addKeyboardInput(xx,yy,function(textIn){clickedNode.text=textIn;draw();});
+
+						}
+					}
+
+				class MM_CreateLinkTool extends MM_MouseTool{
+					constructor(){
+						super();
+						this.currFromID = undefined; //undefined if waiting for first node
+					}
+
+					mousedown(evt){
+						var xx = evt.clientX;
+						var yy = evt.clientY;
+						var clickedNode = map.nodeCoordTest(  {x: evt.clientX, y: evt.clientY} );
+						
+						if(this.currFromId==undefined){
+							if(clickedNode!=undefined){
+								this.currFromId= clickedNode.id;
+							}
+						}else if(clickedNode!=undefined){
+							map.links.push(new MM_Link(this.currFromId,clickedNode.id));
+							this.currFromId=undefined;
+						}
+
+						draw();
+					}
+				}
+
+				class MM_SelectTool extends MM_MouseTool{
+
+					mousedown(evt){
+						var pnt = {x: evt.clientX, y: evt.clientY} ;
+						var clickedNode = map.nodeCoordTest( pnt );
+						if(clickedNode!=undefined){
+							mapEditor.selectedNodes = [clickedNode];
+							mapEditor.selectedLinks = new Array();
+							draw(); return;
+						}
+
+						var clickedLink = map.linkCoordTest( pnt );
+						if(clickedLink!=undefined){
+							mapEditor.selectedLinks = [ clickedLink];
+							mapEditor.selectedNodes = new Array();
+							draw(); return;
+						}
+
+						mapEditor.selectedNodes = new Array();
+						mapEditor.selectedLinks = new Array();
+
+						draw(); return;
+
+					}
+
+				}
+
+				class MM_NodeMoveTool extends MM_MouseTool{
+					//MM_MouseTool.call(this);
+					constructor(){
+						super();
+						this.dragging = undefined;
+					}
+
+					mousedown(evt)
+					{
+						if(this.dragging==undefined)
+						{
+
+							var pnt = {x: evt.clientX, y: evt.clientY} ;
+							var clickedNode = map.nodeCoordTest( pnt );
+							if(clickedNode!=undefined)
+							{
+								this.dragging = clickedNode;
+							}
+						}
+					}
+
+					mousemove(evt){
+						if(this.dragging!=undefined){
+							var pnt = {x: evt.clientX, y: evt.clientY} ;
+							this.dragging.coord = pnt;
+							draw();
+						}
+					}
+
+					mouseup(evt){
+						this.dragging = undefined;
+					}
+				}
+
+				/* coord object */
+				class MM_Coord{
+					constructor(x,y,z){
+						this.x=x;
+						this.y=y;
+						if(z=undefined){
+							this.z=0;
+
+						}else{
+							this.z=z;
+						}
+					}
+				}
+
+				function MM_prep(){
+					var canvas = document.getElementById("canvas");
+					// Make a 2D context
+					var ctx = canvas.getContext("2d");	
+
+					var W = Math.max(
+						document.documentElement["clientWidth"],
+						document.body["scrollWidth"],
+						document.documentElement["scrollWidth"],
+						document.body["offsetWidth"],
+						document.documentElement["offsetWidth"]
+						 );
+
+					var H=  Math.max(  document.documentElement["clientHeight"],
+						document.body["scrollHeight"],
+						document.documentElement["scrollHeight"],
+						document.body["offsetHeight"],
+						document.documentElement["offsetHeight"]
+						);
+
+					// Set the same to the canvas
+					canvas.width = W;
+					canvas.height = H; 
+
+					canvas.addEventListener('mouseup',  MM_mouseupHandler,false);			
+					canvas.addEventListener('mousedown',MM_mousedownHandler,false);
+					canvas.addEventListener('mousemove',MM_onmousemoveEvent,false);
+					window.addEventListener('keydown',MM_keyEvent,false);
+				}
+
+				function draw(){
+				   // Get the canvas element form the page
+				   var canvas = document.getElementById("canvas");
+
+				   // Make a 2D context
+				   var ctx = canvas.getContext("2d");	
+
+				   var W = canvas.width;
+				   var H = canvas.height;
+				   ctx.fillStyle="#FFFFFF";
+				   ctx.fillRect(0,0,W,H);
+
+					//draw lins
+				   for(var i = 0 ; i < map.links.length;i++){
+						map.links[i].draw(ctx);
+				   }
+					//overlay select hilite
+				   for(var i = 0 ; i < mapEditor.selectedLinks.length;i++){
+						mapEditor.selectedLinks[i].drawHilite(ctx);
+					}
+				   ctx.fillStyle ="#000000"
+				   //draw nodes
+				   for(var i = 0 ; i < map.nodes.length;i++){
+					   map.nodes[i].draw(ctx);
+				   }	
+					//overlay select hilite
+				   for(var i = 0 ; i < mapEditor.selectedNodes.length;i++){
+						mapEditor.selectedNodes[i].drawHilite(ctx);
+					}
+
+
+			   }
+
+				/* event input */
+				function MM_mousedownHandler(evt){
+					mapEditor.mouseTool.mousedown(evt);
+					evt.preventDefault()
+				}
+
+				function MM_mouseupHandler(evt){
+					mapEditor.mouseTool.mouseup(evt);
+					evt.preventDefault();
+				}
+
+				function MM_onmousemoveEvent(evt){
+					mapEditor.mouseTool.mousemove(evt);
+					evt.preventDefault();
+				}
+
+				function MM_keyEvent(evt){
+					mapEditor.keyListener.keydown(evt);
+				}
+
+				class MM_KeyListener{
+
+					keydown(evt){
+
+					}
+				}		
+
+				class MM_MainKeyListener extends MM_KeyListener{
+
+					constructor(){
+						super();
+					}
+
+					keydown(evt){
+
+						switch(evt.key){
+							case "s":
+								mapEditor.mouseTool = new MM_SelectTool();
+								evt.preventDefault();
+								break;
+							case "c":
+								mapEditor.mouseTool = new MM_CreateNodeTool();
+								evt.preventDefault();
+								break;
+							case "l":
+								mapEditor.mouseTool = new MM_CreateLinkTool();
+								evt.preventDefault();
+								break;
+							case "m":
+								mapEditor.mouseTool = new MM_NodeMoveTool();
+								evt.preventDefault();
+								break;
+							case "e":
+								mapEditor.mouseTool = new MM_EditNodeTextTool();
+								evt.preventDefault();
+								break;
+							case "Backspace":
+								mapEditor.deleteSelected();
+								evt.preventDefault();
+								break;
+
+						}
+
+					}
+				}		
+
+				var currTextInputReturn;
+				function addKeyboardInput(x, y,ret) {
+
+					mapEditor.keyListener= new MM_KeyListener();
+
+					var input = document.createElement('input');
+
+					input.type = 'text';
+					input.style.position = 'fixed';
+					input.style.left = (x - 4) + 'px';
+					input.style.top = (y - 4) + 'px';
+
+					currTextInputReturn = ret;
+					input.onkeydown = handleKeyboardEnter;
+
+					document.body.appendChild(input);
+
+					input.focus();
+
+					hasInput = true;
+				}
+
+				function handleKeyboardEnter(e) {
+					var keyCode = e.keyCode;
+					if (keyCode === 13) {
+						currTextInputReturn(this.value);
+						document.body.removeChild(this);
+						hasInput = false;
+						mapEditor.keyListener = new MM_MainKeyListener();
+					}
+				}
+
+				/****MATH****/
+				function sqr(x) { 
+					return x * x 
+				}
+
+				function dist2(v, w) { 
+					return sqr(v.x - w.x) + sqr(v.y - w.y) 
+				}
+
+				function distToSegmentSquared(p, v, w) {
+				  var l2 = dist2(v, w);
+
+				  if (l2 == 0) return dist2(p, v);
+
+				  var t = ((p.x - v.x) * (w.x - v.x) + (p.y - v.y) * (w.y - v.y)) / l2;
+
+				  if (t < 0) return dist2(p, v);
+				  if (t > 1) return dist2(p, w);
+
+				  return dist2(p, { x: v.x + t * (w.x - v.x), y: v.y + t * (w.y - v.y) });
+				}
+
+				function distToSegment(p, v, w) { 
+					return Math.sqrt(distToSegmentSquared(p, v, w));
+				}
+
+
+				/*main variables */
+				var mapEditor = new MindMapEditor();
+				var map = new MindMap();
+
+				/*quick default*/
+				var tempNode = map.addNode();
+				tempNode.coord={x:30,y:40};
+				tempNode = map.addNode();
+				tempNode.coord = {x:60,y:70};
+				map.links.push(new MM_Link(map.nodes[0].id,map.nodes[1].id));
+
+		</script>
+		<style>
+			body {
+				overflow: hidden;
+			}
+			#canvas {
+				position: fixed;
+				left: 0px;
+				top: 0px;
+			}
+		</style>
+	</head>
+	<body onload="MM_prep(); draw();">
+		<div>
+		  <canvas id="canvas">Please use a better browser! </canvas>
+		</div>
+	</body>
+</html>
+
+
+
+
