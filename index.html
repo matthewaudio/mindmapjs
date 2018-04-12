@@ -75,10 +75,13 @@
 				class MindMapEditor{
 
 					constructor(){
+						this.mouseHandler =new MM_PalleteMouseHandler()
 						this.mouseTool = new MM_SelectTool();
 						this.keyListener = new MM_MainKeyListener();
 						this.selectedNodes = new Array();
 						this.selectedLinks = new Array();
+						this.palettes = new Array();
+						this.palettes.push(new MM_StylePalette());
 					}
 
 					deleteSelected(){
@@ -94,6 +97,13 @@
 						this.selectedLinks = new Array();
 
 						draw();
+					}
+					
+					draw(ctx){
+						console.log("draw palletes");
+						for(var i = 0 ; i < this.palettes.length;i++){
+							this.palettes[i].draw(ctx);
+						}
 					}
 				}
 
@@ -178,15 +188,59 @@
 					}	
 				}
 
-				/* Mouse Tools */
-				class MM_MouseTool{
-
+				/* mouseHandler */
+				class MM_MouseHandler{
 					mousedown(evt){}
-
 					mouseup(evt){}
-
 					mousemove(evt){}
-
+				}
+			
+			
+				//Forward to palletes, if no pallete hittest, forward to tools
+				class MM_PalleteMouseHandler extends MM_MouseHandler{
+					
+					constructor(){
+						super();
+						this.target = undefined;
+					}
+			
+					mousedown(evt){
+						var xx = evt.clientX;
+						var yy = evt.clientY;
+						var pnt = {x:xx,y:yy};
+						for(var i = 0 ; i <mapEditor.palettes.length;i++){
+							if(mapEditor.palettes[i].mouseHitTest(pnt)){
+								mapEditor.palettes[i].mousedown(pnt);
+								this.target = mapEditor.palettes[i];
+								return;
+							}
+						}	 
+						mapEditor.mouseTool.mousedown(evt);
+					}
+					mouseup(evt){
+						if(this.target!=undefined){
+							this.target.mousedown(evt);
+							this.target=undefined;
+						}else{
+							mapEditor.mouseTool.mouseup(evt);
+						}
+						
+					}
+					mousemove(evt){
+						if(this.target!=undefined){
+							this.target.mousedown(evt);
+						}else{
+							mapEditor.mouseTool.mousemove(evt);
+						}
+						
+					}
+			
+			
+				}
+			
+				/* Mouse Tools */
+				class MM_MouseTool extends MM_MouseHandler{
+					draw(ctx){};
 				}
 
 				class MM_CreateNodeTool extends MM_MouseTool{
@@ -306,6 +360,56 @@
 					}
 				}
 
+				
+				/* palette */
+				class MM_Palette{
+					constructor(){
+						this.coord = {x:0,y:0};
+						this.size = {w:0,h:0};
+					}
+				
+					draw(ctx){
+						ctx.fillStyle = '#333333'
+						ctx.fillRect(this.coord.x,this.coord.y,this.size.w,this.size.h);
+					}
+					
+					mouseHitTest(coord){
+						if(coord.x>=this.coord.x&&coord.x<=this.coord.x+this.size.w&&coord.y>=this.coord.y&&coord.y<=this.coord.y+this.size.h){
+							return true;
+						}
+						return false;
+					}
+					
+					mousedown(evt){}
+					mouseup(evt){}
+					mousemove(evt){}
+					
+				}
+				
+				class MM_StylePalette extends MM_Palette{
+					constructor(){
+						super();
+						this.size = {w:100,h:20};
+					}
+					
+					draw(ctx){
+						super.draw(ctx);
+						
+					} 
+					
+					mousedown(evt){
+						
+					}
+					
+				}
+			
+				class UIElement {
+					constructor(){
+						this.size = {w:0,h:0};
+						this.relPosition = {w:0,h:0};
+					}
+				}
+				
 				/* coord object */
 				class MM_Coord{
 					constructor(x,y,z){
@@ -380,22 +484,24 @@
 						mapEditor.selectedNodes[i].drawHilite(ctx);
 					}
 
+				   mapEditor.draw(ctx);
+					
 
 			   }
 
 				/* event input */
 				function MM_mousedownHandler(evt){
-					mapEditor.mouseTool.mousedown(evt);
+					mapEditor.mouseHandler.mousedown(evt);
 					evt.preventDefault()
 				}
 
 				function MM_mouseupHandler(evt){
-					mapEditor.mouseTool.mouseup(evt);
+					mapEditor.mouseHandler.mouseup(evt);
 					evt.preventDefault();
 				}
 
 				function MM_onmousemoveEvent(evt){
-					mapEditor.mouseTool.mousemove(evt);
+					mapEditor.mouseHandler.mousemove(evt);
 					evt.preventDefault();
 				}
 
